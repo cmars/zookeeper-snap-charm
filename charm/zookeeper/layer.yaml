@@ -7,6 +7,8 @@ includes:
 - "interface:nrpe-external-master"
 - "interface:local-monitors"
 options:
+  basic:
+    include_system_packages: True
   snap:
     core: {}
     zk:
