@@ -12,7 +12,7 @@ zk_$(ZK_VERSION)_amd64.snap:
 
 .PHONY: lint
 lint:
-	flake8 --ignore=E121,E123,E126,E226,E24,E704,E265 charm/zookeeper
+	flake8 --ignore=E121,E123,E126,E226,E24,E704,E265,W503,W605 charm/zookeeper
 
 .PHONY: charm
 charm: charm/builds/zookeeper

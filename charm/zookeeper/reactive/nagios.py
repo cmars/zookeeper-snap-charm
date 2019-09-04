@@ -65,8 +65,8 @@ def setup_nagios(nagios):
                          name=check['name'],
                          description=check['description'],
                          context=config["nagios_context"],
-                         servicegroups=(config.get("nagios_servicegroups") or
-                                        config["nagios_context"]),
+                         servicegroups=(config.get("nagios_servicegroups")
+                                        or config["nagios_context"]),
                          unit=unit_name)
     nagios.updated()
     set_state('zookeeper.nrpe_helper.registered')
