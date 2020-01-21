@@ -20,18 +20,15 @@
 Generic monitoring script that could be used with multiple platforms (Ganglia,
 Nagios, Cacti).
 
-It requires ZooKeeper 3.4.0 or greater. The script needs the 'mntr' 4letter
-word command (patch ZOOKEEPER-744) that was now commited to the trunk. The
-script also works with ZooKeeper 3.3.x but in a limited way.
+It requires ZooKeeper 3.4.0 or greater because of the 'mntr' 4letter word
+command (patch ZOOKEEPER-744).
 
-Taken from https://github.com/andreisavu/zookeeper-monitoring/
-
+Based on https://github.com/andreisavu/zookeeper-monitoring/
 """
 
 import sys
 import socket
 import logging
-import re
 import subprocess
 import os
 
@@ -41,13 +38,13 @@ from optparse import OptionParser, OptionGroup
 
 
 __version__ = (0, 1, 0)
+STATS_RESET_INTERVAL_MINUTES = 60
 
 log = logging.getLogger()
 logging.basicConfig(level=logging.ERROR)
 
 
 class NagiosHandler(object):
-
     @classmethod
     def register_options(cls, parser):
         group = OptionGroup(parser, 'Nagios specific options')
@@ -103,7 +100,6 @@ class NagiosHandler(object):
 
 
 class CactiHandler(object):
-
     @classmethod
     def register_options(cls, parser):
         group = OptionGroup(parser, 'Cacti specific options')
@@ -145,7 +141,6 @@ class CactiHandler(object):
 
 
 class GangliaHandler(object):
-
     @classmethod
     def register_options(cls, parser):
         group = OptionGroup(parser, 'Ganglia specific options')
@@ -175,7 +170,6 @@ class GangliaHandler(object):
 
 
 class ZooKeeperServer(object):
-
     def __init__(self, host='localhost', port='2181', timeout=1,
                  meta_file='/tmp/zk_check/meta'):
         self._address = (host, int(port))
@@ -200,19 +194,18 @@ class ZooKeeperServer(object):
 
     def get_stats(self):
         """ Get ZooKeeper server stats as a map """
+        # Reset stats every hour
+        td = datetime.utcnow() - self._last_reset
+        if td.seconds // 60 >= STATS_RESET_INTERVAL_MINUTES:
+            self._reset_stats()
+
         data = self._send_cmd('mntr')
         if data:
-            return self._parse(data)
-        else:
-            data = self._send_cmd('stat')
-            return self._parse_stat(data)
-
-    def _create_socket(self):
-        return socket.socket()
+            return self._parse_mntr(data)
 
     def _send_cmd(self, cmd):
         """ Send a 4letter word command to the server """
-        s = self._create_socket()
+        s = socket.socket()
         s.settimeout(self._timeout)
 
         s.connect(self._address)
@@ -232,7 +225,7 @@ class ZooKeeperServer(object):
             f.truncate()
             f.write(str(datetime.utcnow().timestamp()))
 
-    def _parse(self, data):
+    def _parse_mntr(self, data):
         """ Parse the output from the 'mntr' 4letter word command """
         h = StringIO(data.decode('utf-8'))
 
@@ -243,59 +236,6 @@ class ZooKeeperServer(object):
                 result[key] = value
             except ValueError:
                 pass  # ignore broken lines
-
-        return result
-
-    def _parse_stat(self, data):
-        """ Parse the output from the 'stat' 4letter word command """
-        h = StringIO(data.decode('utf-8'))
-
-        result = {}
-
-        version = h.readline()
-        if version:
-            result['zk_version'] = version[version.index(':')+1:].strip()
-
-        # skip all lines until we find the empty one
-        while h.readline().strip():
-            pass
-
-        for line in h.readlines():
-            m = re.match('Latency min/avg/max: (\d+)/(\d+)/(\d+)', line)
-            if m is not None:
-                result['zk_min_latency'] = int(m.group(1))
-                result['zk_avg_latency'] = int(m.group(2))
-                result['zk_max_latency'] = int(m.group(3))
-                continue
-
-            m = re.match('Received: (\d+)', line)
-            if m is not None:
-                result['zk_packets_received'] = int(m.group(1))
-                continue
-
-            m = re.match('Sent: (\d+)', line)
-            if m is not None:
-                result['zk_packets_sent'] = int(m.group(1))
-                continue
-
-            m = re.match('Outstanding: (\d+)', line)
-            if m is not None:
-                result['zk_outstanding_requests'] = int(m.group(1))
-                continue
-
-            m = re.match('Mode: (.*)', line)
-            if m is not None:
-                result['zk_server_state'] = m.group(1)
-                continue
-
-            m = re.match('Node count: (\d+)', line)
-            if m is not None:
-                result['zk_znode_count'] = int(m.group(1))
-                continue
-
-        td = datetime.utcnow() - self._last_reset
-        if td.seconds // 60 >= 60:  # 60 mins
-            self._reset_stats()
 
         return result
 
@@ -362,7 +302,6 @@ def get_cluster_stats(servers):
         try:
             zk = ZooKeeperServer(host, port)
             stats["%s:%s" % (host, port)] = zk.get_stats()
-
         except socket.error:
             # ignore because the cluster can still work even
             # if some servers fail completely
