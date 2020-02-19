@@ -49,11 +49,6 @@ def setup_nagios(nagios):
         'description': 'ZK_Outstanding_Requests',
         'warn': 20,
         'crit': 50,
-    }, {
-        'name': 'zk_watch_count',
-        'description': 'ZK_Watch_Count',
-        'warn': 100,
-        'crit': 500,
     }]
     check_cmd = ['/usr/local/lib/nagios/plugins/check_zookeeper.py',
                  '-o', 'nagios',
