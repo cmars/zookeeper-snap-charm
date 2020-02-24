@@ -83,4 +83,15 @@ def install_nrpe_helper():
     dst = '{}/check_zookeeper.py'.format(dst_dir)
     shutil.copy(src, dst)
     os.chmod(dst, 0o755)
+
+    # Create directory for check script state file, repair permissions and
+    # ownership
+    state_dir = '/var/lib/check_zookeeper'
+    os.makedirs(state_dir, mode=0o755, exist_ok=True)
+    shutil.chown(state_dir, 'nagios', 'nagios')
+    meta_file = os.path.join(state_dir, 'meta')
+    if os.path.exists(meta_file):
+        os.chmod(meta_file, 0o644)
+        shutil.chown(meta_file, 'nagios', 'nagios')
+
     set_state('zookeeper.nrpe_helper.installed')
