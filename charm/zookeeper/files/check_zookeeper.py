@@ -30,7 +30,6 @@ import sys
 import socket
 import logging
 import subprocess
-import os
 
 from datetime import datetime
 from io import StringIO
@@ -171,13 +170,11 @@ class GangliaHandler(object):
 
 class ZooKeeperServer(object):
     def __init__(self, host='localhost', port='2181', timeout=1,
-                 meta_file='/tmp/zk_check/meta'):
+                 meta_file='/var/lib/check_zookeeper/meta'):
         self._address = (host, int(port))
         self._timeout = timeout
         self._last_reset = datetime.utcnow()
         self._meta_path = meta_file
-
-        os.makedirs(os.path.dirname(meta_file), exist_ok=True)
 
         with open(meta_file, 'a+') as f:
             f.seek(0)
